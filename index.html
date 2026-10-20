@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <title>Kitty-Tools Dashboard</title>
+    <style>
+        body { font-family: 'Courier New', monospace; background: #1a1a1a; color: #0f0; padding: 20px; }
+        #terminal { background: #000; border: 1px solid #333; height: 400px; overflow-y: scroll; padding: 10px; font-size: 14px; }
+        button { padding: 10px 20px; background: #0f0; color: #000; border: none; cursor: pointer; font-weight: bold; margin-top: 10px; }
+        button:hover { background: #0c0; }
+        .log-line { margin: 2px 0; }
+    </style>
+</head>
+<body>
+    <h1>Kitty-Tools Web Interface</h1>
+    <button onclick="startProcess()">Starten</button>
+    <div id="terminal">
+        <div class="log-line">Warte auf Befehl...</div>
+    </div>
+
+    <script>
+        let pollingInterval;
+
+        function startProcess() {
+            fetch('/start', { method: 'POST' })
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('terminal').innerHTML = '<div class="log-line">Prozess gestartet...</div>';
+                    startPolling();
+                });
+        }
+
+        function startPolling() {
+            if (pollingInterval) clearInterval(pollingInterval);
+            pollingInterval = setInterval(checkStatus, 500);
+        }
+
+        function checkStatus() {
+            fetch('/status')
+                .then(response => response.json())
+                .then(data => {
+                    const terminal = document.getElementById('terminal');
+                    const lastLine = terminal.lastElementChild;
+                    if (data.output.length > 0) {
+                        // Einfache Logik: Nur neue Zeilen anzeigen (in Produktion optimieren)
+                        data.output.forEach(line => {
+                            if (lastLine && lastLine.innerText === line) return;
+                            const div = document.createElement('div');
+                            div.className = 'log-line';
+                            div.innerText = `> ${line}`;
+                            terminal.appendChild(div);
+                            terminal.scrollTop = terminal.scrollHeight;
+                            if (line.includes("Fertigstellung")) clearInterval(pollingInterval);
+                        });
+                    }
+                });
+        }
+    </script>
+</body>
+</html>
